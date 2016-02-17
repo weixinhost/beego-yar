@@ -6,12 +6,14 @@ import (
 	"beego-yar/packager"
 	"github.com/astaxie/beego"
 	"reflect"
+	"strings"
 )
 
 type Server struct {
 
 	ctx *context.Context
 	class interface{}
+	methodMap map[string]string
 	body []byte
 }
 
@@ -20,9 +22,16 @@ func NewServer(ctx *context.Context,class interface{}) *Server {
 	server := new(Server)
 	server.class = class
 	server.ctx = ctx
+	server.methodMap = make(map[string]string,32)
+
 	return server
 }
 
+func (self *Server)Register(rpcName string,methodName string) {
+
+	self.methodMap[strings.ToLower(rpcName)] = methodName
+
+}
 
 func (self *Server)getHeader() (*Header,error) {
 
@@ -85,7 +94,16 @@ func (self *Server)call(request *Request,response *Response) {
 
 	class_fv := reflect.ValueOf(self.class)
 
-	_,err := class_fv.Type().MethodByName(request.Method)
+	methodMap,ok := self.methodMap[strings.ToLower(request.Method)]
+
+	var err bool
+
+	if  ok == false {
+		_, err = class_fv.Type().MethodByName(request.Method)
+		methodMap = request.Method
+	}else{
+		_,err = class_fv.Type().MethodByName(methodMap)
+	}
 
 	if err == false {
 		response.Status = ERR_EMPTY_RESPONSE
@@ -93,7 +111,7 @@ func (self *Server)call(request *Request,response *Response) {
 		return
 	}
 
-	fv :=class_fv.MethodByName(request.Method)
+	fv :=class_fv.MethodByName(methodMap)
 
 	if len(call_params) != fv.Type().NumIn() {
 
