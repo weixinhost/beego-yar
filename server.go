@@ -15,6 +15,7 @@ type Server struct {
 	body []byte
 }
 
+
 func NewServer(ctx *context.Context,class interface{}) *Server {
 	server := new(Server)
 	server.class = class
