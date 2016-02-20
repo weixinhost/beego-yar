@@ -50,7 +50,6 @@ func (self *Server)getHeader() (*Header,error) {
 }
 
 
-
 func (self *Server)getRequest(header *Header) (*Request,error) {
 
 	body_len := header.BodyLength
@@ -58,8 +57,6 @@ func (self *Server)getRequest(header *Header) (*Request,error) {
 	body_buffer := self.body[90:90+body_len-8]
 
 	request := NewRequest()
-
-	beego.Debug(body_len)
 
 	err := packager.Unpack(header.Packager[:],body_buffer,request)
 
@@ -183,7 +180,7 @@ func (self *Server)Handle() (bool,error){
 
 	}else {
 
-		beego.Debug(request.Id,request.Method,"OKEY")
+		beego.Notice(request.Id,request.Method,"OKEY")
 
 	}
 

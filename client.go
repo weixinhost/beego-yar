@@ -25,9 +25,6 @@ const (
 	CLIENT_DEFAULT_CONNECTION_TIMEOUT_SECOND = 1000			// 默认链接超时
 )
 
-
-
-
 //用于yar请求的客户端
 type Client struct {
 	net string			//网络传输协议.支持 "tcp","udp","http","unix"等值
@@ -207,7 +204,7 @@ func (self *Client) Call(method string, ret interface{},params ...interface{}) (
 
 	switch self.net {
 
-	case "tcp" , "udp" , "unix":
+	case "tcp" , "unix":
 		{
 			return self.sockCall(method, ret,params...)
 		}
