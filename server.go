@@ -118,7 +118,6 @@ func (self *Server)call(request *Request,response *Response) {
 	}
 
 	real_params := make([]reflect.Value, len(call_params))
-	real_params[0] = class_fv
 
 	func() {
 
