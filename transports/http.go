@@ -2,7 +2,6 @@ package transports
 
 import (
 	"net"
-	//"os"
 	"time"
 	"net/http"
 	"fmt"

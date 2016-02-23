@@ -3,7 +3,7 @@ import (
 	"github.com/astaxie/beego/context"
 	"errors"
 	"bytes"
-	"beego-yar/packager"
+	"github.com/weixinhost/beego-yar/packager"
 	"github.com/astaxie/beego"
 	"reflect"
 	"strings"
@@ -185,4 +185,10 @@ func (self *Server)Handle() (bool,error){
 
 
 	return true,nil
+}
+
+func init(){
+
+	beego.BConfig.CopyRequestBody = true
+
 }
