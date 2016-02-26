@@ -2,6 +2,7 @@ package packager
 
 import (
 	"encoding/json"
+	"strings"
 )
 
 func JsonPack(v interface{}) ([]byte, error) {
@@ -10,6 +11,8 @@ func JsonPack(v interface{}) ([]byte, error) {
 }
 
 func JsonUnpack(data []byte, v interface{}) error {
-	err := json.Unmarshal(data, v)
+	d := json.NewDecoder(strings.NewReader(string(data)))
+	d.UseNumber()
+	err := d.Decode(v)
 	return err
 }
