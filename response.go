@@ -1,16 +1,15 @@
 package beego_yar
 
-
 type Response struct {
-	Protocol *Header 			`json:"-" msgpack:"-"`
-	Id       uint32    			`json:"i" msgpack:"i"`
-	Error    string    			`json:"e" msgpack:"e"`
-	Out      string    			`json:"o" msgpack:"o"`
-	Status   ErrorType 			`json:"s" msgpack:"s"`
-	Retval   interface{}   		`json:"r" msgpack:"r"`
+	Protocol *Header     `json:"-" msgpack:"-"`
+	Id       uint32      `json:"i" msgpack:"i"`
+	Error    string      `json:"e" msgpack:"e"`
+	Out      string      `json:"o" msgpack:"o"`
+	Status   ErrorType   `json:"s" msgpack:"s"`
+	Retval   interface{} `json:"r" msgpack:"r"`
 }
 
-func NewResponse()(response *Response){
+func NewResponse() (response *Response) {
 
 	response = new(Response)
 
@@ -31,5 +30,3 @@ func (self *Response) Return(v interface{}) (err error) {
 	self.Retval = v
 	return nil
 }
-
-

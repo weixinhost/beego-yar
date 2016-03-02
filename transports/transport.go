@@ -1,18 +1,16 @@
 package transports
 
 import (
-
 	"io"
 	"time"
 )
 
 const (
-
-	CONNECTION_READ_TIMEOUT_SECOND 	= 5
+	CONNECTION_READ_TIMEOUT_SECOND  = 5
 	CONNECTION_WRITE_TIMEOUT_SECOND = 5
 )
 
-type TransportConnection interface{
+type TransportConnection interface {
 	io.Reader
 	io.Writer
 	io.Closer
@@ -24,9 +22,9 @@ type TransportConnection interface{
 type ConnectionHandler func(conn TransportConnection)
 
 type Transport interface {
-	Serve()(err error)
+	Serve() (err error)
 	OnConnection(handler ConnectionHandler)
-	Connection()(conn TransportConnection,err error)
+	Connection() (conn TransportConnection, err error)
 }
 
 func defaultHandler(conn TransportConnection) {

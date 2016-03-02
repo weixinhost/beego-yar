@@ -11,11 +11,11 @@ type PackFunc func(v interface{}) ([]byte, error)
 
 type UnpackFunc func(data []byte, v interface{}) error
 
-func Pack(name []byte ,v interface{}) ([]byte, error) {
+func Pack(name []byte, v interface{}) ([]byte, error) {
 
 	s := strings.ToLower(bytes.NewBuffer(name).String())
 
-	if strings.Contains(s,"json"){
+	if strings.Contains(s, "json") {
 
 		return JsonPack(v)
 	}
@@ -28,7 +28,7 @@ func Unpack(name []byte, data []byte, v interface{}) error {
 
 	s := strings.ToLower(bytes.NewBuffer(name).String())
 
-	if strings.Contains(s,"json"){
+	if strings.Contains(s, "json") {
 
 		return JsonUnpack(data, v)
 

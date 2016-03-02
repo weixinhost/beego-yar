@@ -1,21 +1,20 @@
 package transports
 
 import (
-	"net"
-	"time"
-	"net/http"
 	"fmt"
+	"net"
+	"net/http"
+	"time"
 )
 
 type HttpConnection struct {
-	request *http.Request
+	request  *http.Request
 	response http.ResponseWriter
-	body []byte
+	body     []byte
 	use_read int
 }
 
-
-func NewHttpConnection(response http.ResponseWriter,request *http.Request)(*HttpConnection){
+func NewHttpConnection(response http.ResponseWriter, request *http.Request) *HttpConnection {
 
 	conn := new(HttpConnection)
 	conn.request = request
@@ -25,39 +24,39 @@ func NewHttpConnection(response http.ResponseWriter,request *http.Request)(*Http
 	return conn
 }
 
-func(conn *HttpConnection)Read(buffer []byte)(n int,err error){
+func (conn *HttpConnection) Read(buffer []byte) (n int, err error) {
 
 	return conn.request.Body.Read(buffer)
 }
 
-func(conn *HttpConnection)Write(buffer []byte)(n int,err error){
+func (conn *HttpConnection) Write(buffer []byte) (n int, err error) {
 	return conn.response.Write(buffer)
 }
 
-func(conn *HttpConnection)Close()(err error){
-//	 conn.request.Body.Close()
-	 return nil
+func (conn *HttpConnection) Close() (err error) {
+	//	 conn.request.Body.Close()
+	return nil
 }
 
-func(conn *HttpConnection)SetReadTimeout(timeout time.Duration){
+func (conn *HttpConnection) SetReadTimeout(timeout time.Duration) {
 	//its empty.
 }
 
-func (conn *HttpConnection)SetWriteTimeout(timeout time.Duration){
+func (conn *HttpConnection) SetWriteTimeout(timeout time.Duration) {
 	//its empty.
 }
 
 type Http struct {
-	hostname string
-	path string
-	listener net.Listener
-	handler ConnectionHandler
-	readTimeout time.Duration
+	hostname     string
+	path         string
+	listener     net.Listener
+	handler      ConnectionHandler
+	readTimeout  time.Duration
 	writeTimeout time.Duration
-	running bool
+	running      bool
 }
 
-func NewHttp(hostname string,path string,readTimeout time.Duration,writeTimeout time.Duration) (*Http, error) {
+func NewHttp(hostname string, path string, readTimeout time.Duration, writeTimeout time.Duration) (*Http, error) {
 	tcp := new(Http)
 	tcp.hostname = hostname
 	tcp.handler = defaultHandler
@@ -72,18 +71,18 @@ func (self *Http) OnConnection(handler ConnectionHandler) {
 	self.handler = handler
 }
 
-func (self *Http)ServeHTTP(writer http.ResponseWriter,request *http.Request) {
-	conn := NewHttpConnection(writer,request)
+func (self *Http) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
+	conn := NewHttpConnection(writer, request)
 	self.handler(conn)
 }
 
-func (self *Http) Serve()(err error) {
+func (self *Http) Serve() (err error) {
 
 	s := &http.Server{
-		Addr : self.hostname,
-		ReadTimeout:self.readTimeout,
-		WriteTimeout:self.writeTimeout,
-		Handler:self,
+		Addr:         self.hostname,
+		ReadTimeout:  self.readTimeout,
+		WriteTimeout: self.writeTimeout,
+		Handler:      self,
 	}
 
 	s.SetKeepAlivesEnabled(false)
@@ -92,14 +91,12 @@ func (self *Http) Serve()(err error) {
 	return nil
 }
 
+func (self *Http) Connection() (conn TransportConnection, err error) {
 
-func(self *Http)Connection()(conn TransportConnection,err error){
-
-	return nil,err
+	return nil, err
 }
 
-
-func (self *Http)initConnection(conn net.Conn){
+func (self *Http) initConnection(conn net.Conn) {
 
 	now := time.Now()
 

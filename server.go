@@ -1,105 +1,102 @@
 package beego_yar
+
 import (
-	"github.com/astaxie/beego/context"
-	"errors"
 	"bytes"
-	"github.com/weixinhost/beego-yar/packager"
+	"errors"
 	"github.com/astaxie/beego"
+	"github.com/astaxie/beego/context"
+	"github.com/weixinhost/beego-yar/packager"
 	"reflect"
 	"strings"
 )
 
 type Server struct {
-
-	ctx *context.Context
-	class interface{}
+	ctx       *context.Context
+	class     interface{}
 	methodMap map[string]string
-	body []byte
+	body      []byte
 }
 
-
-func NewServer(ctx *context.Context,class interface{}) *Server {
+func NewServer(ctx *context.Context, class interface{}) *Server {
 	server := new(Server)
 	server.class = class
 	server.ctx = ctx
-	server.methodMap = make(map[string]string,32)
+	server.methodMap = make(map[string]string, 32)
 
 	return server
 }
 
-func (self *Server)Register(rpcName string,methodName string) {
+func (self *Server) Register(rpcName string, methodName string) {
 
 	self.methodMap[strings.ToLower(rpcName)] = methodName
 
 }
 
-func (self *Server)getHeader() (*Header,error) {
+func (self *Server) getHeader() (*Header, error) {
 
-	header_buffer := bytes.NewBuffer(self.body[0:PROTOCOL_LENGTH+PROTOCOL_LENGTH])
+	header_buffer := bytes.NewBuffer(self.body[0 : PROTOCOL_LENGTH+PROTOCOL_LENGTH])
 
 	header := NewHeaderWithBytes(header_buffer)
 
 	if header.MagicNumber != MAGIC_NUMBER {
 
-		return nil,errors.New("magic number check failed.")
+		return nil, errors.New("magic number check failed.")
 
 	}
 
-	return header,nil
+	return header, nil
 
 }
 
-
-func (self *Server)getRequest(header *Header) (*Request,error) {
+func (self *Server) getRequest(header *Header) (*Request, error) {
 
 	body_len := header.BodyLength
 
-	body_buffer := self.body[90:90+body_len-8]
+	body_buffer := self.body[90 : 90+body_len-8]
 
 	request := NewRequest()
 
-	err := packager.Unpack(header.Packager[:],body_buffer,request)
+	err := packager.Unpack(header.Packager[:], body_buffer, request)
 
 	if err != nil {
 
-		return nil,err
+		return nil, err
 
 	}
 
-	return request,nil
+	return request, nil
 }
 
+func (self *Server) sendResponse(response *Response) error {
 
-func (self *Server)sendResponse(response *Response) error {
-
-	sendPackData,err := packager.Pack(response.Protocol.Packager[:],response)
+	sendPackData, err := packager.Pack(response.Protocol.Packager[:], response)
 
 	if err != nil {
 
 		return err
 	}
-	response.Protocol.BodyLength = uint32(len(sendPackData) +8)
+	response.Protocol.BodyLength = uint32(len(sendPackData) + 8)
 	self.ctx.ResponseWriter.Write(response.Protocol.Bytes().Bytes())
 	self.ctx.ResponseWriter.Write(sendPackData)
 	return nil
 
 }
 
-func (self *Server)call(request *Request,response *Response) {
+func (self *Server) call(request *Request, response *Response) {
 
 	call_params := request.Params.([]interface{})
 
 	class_fv := reflect.ValueOf(self.class)
 
-	methodMap,ok := self.methodMap[strings.ToLower(request.Method)]
+	methodMap, ok := self.methodMap[strings.ToLower(request.Method)]
 
 	var err bool
 
-	if  ok == false {
+	if ok == false {
 		_, err = class_fv.Type().MethodByName(request.Method)
 		methodMap = request.Method
-	}else{
-		_,err = class_fv.Type().MethodByName(methodMap)
+	} else {
+		_, err = class_fv.Type().MethodByName(methodMap)
 	}
 
 	if err == false {
@@ -108,7 +105,7 @@ func (self *Server)call(request *Request,response *Response) {
 		return
 	}
 
-	fv :=class_fv.MethodByName(methodMap)
+	fv := class_fv.MethodByName(methodMap)
 
 	if len(call_params) != fv.Type().NumIn() {
 
@@ -142,7 +139,7 @@ func (self *Server)call(request *Request,response *Response) {
 
 }
 
-func (self *Server)Handle() (bool,error){
+func (self *Server) Handle() (bool, error) {
 
 	self.body = self.ctx.Input.RequestBody
 
@@ -150,44 +147,43 @@ func (self *Server)Handle() (bool,error){
 
 	if len(self.body) < (PROTOCOL_LENGTH + PACKAGER_LENGTH) {
 
-		return false,errors.New("read request body error.")
+		return false, errors.New("read request body error.")
 	}
 
-	header,err := self.getHeader()
+	header, err := self.getHeader()
 
 	if err != nil {
 		beego.Error(err)
-		return false,err
+		return false, err
 	}
 
-	request,err := self.getRequest(header)
+	request, err := self.getRequest(header)
 
 	if err != nil {
 		beego.Error(err)
-		return false,err
+		return false, err
 	}
 
 	response := NewResponse()
 	response.Status = ERR_OKEY
 	response.Protocol = header
-	self.call(request,response)
+	self.call(request, response)
 	self.sendResponse(response)
 
 	if response.Status != ERR_OKEY {
 
-		beego.Warn(request.Id,request.Method,response.Error)
+		beego.Warn(request.Id, request.Method, response.Error)
 
-	}else {
+	} else {
 
-		beego.Notice(request.Id,request.Method,"OKEY")
+		beego.Notice(request.Id, request.Method, "OKEY")
 
 	}
 
-
-	return true,nil
+	return true, nil
 }
 
-func init(){
+func init() {
 
 	beego.BConfig.CopyRequestBody = true
 

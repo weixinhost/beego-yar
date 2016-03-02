@@ -1,6 +1,5 @@
 package beego_yar
 
-
 import (
 	"bytes"
 	"encoding/binary"
@@ -54,7 +53,6 @@ func NewHeaderWithBytes(payload *bytes.Buffer) *Header {
 	p.Init(payload)
 	return p
 }
-
 
 func (self *Header) Init(payload *bytes.Buffer) bool {
 
