@@ -12,7 +12,6 @@ import (
 	"time"
 	"crypto/tls"
 	"fmt"
-	"os"
 )
 
 type ClientOpt int
@@ -89,7 +88,7 @@ func (self *Client) SetOpt(opt ClientOpt, v interface{}) bool {
 			return true
 		}
 	}
-	
+
 	return false
 }
 
@@ -189,8 +188,6 @@ func (self *Client) httpCall(method string, ret interface{}, params ...interface
 		Transport:tr,
 		Timeout: time.Duration(self.opt[CLIENT_TIMEOUT].(int)) * time.Millisecond,
 	}
-
-	fmt.Fprintln(os.Stderr,string(post_buffer.Bytes()))
 
 	resp, err := httpClient.Post(self.hostname, "application/json", post_buffer)
 
