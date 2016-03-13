@@ -4,12 +4,15 @@ import (
 	"bytes"
 	"encoding/gob"
 	"errors"
-	"github.com/astaxie/beego"
 	"github.com/weixinhost/beego-yar/packager"
 	"github.com/weixinhost/beego-yar/transports"
 	"math/rand"
 	"net/http"
 	"strings"
+	"time"
+	"crypto/tls"
+	"fmt"
+	"os"
 )
 
 type ClientOpt int
@@ -18,10 +21,11 @@ const (
 	CLIENT_CONNECTION_TIMEOUT ClientOpt = 1 //连接超时
 	CLIENT_TIMEOUT            ClientOpt = 2 //整体超时
 	CLIENT_PACKAGER           ClientOpt = 3 //打包协议.目前支持 "json"
+	CLIENT_MAGIC_NUM 		  ClientOpt = 4
 )
 
 const (
-	CLIENT_DEFAULT_PACKAGER                  = "json" // 默认打包协议
+	CLIENT_DEFAULT_PACKAGER                  = "JSON" // 默认打包协议
 	CLIENT_DEFAULT_TIMEOUT_SECOND            = 5000   // 默认超时.包含连接超时.因此,rpc函数的执行超时为 TIMEOUT - CONNECTION_TIMEOUT
 	CLIENT_DEFAULT_CONNECTION_TIMEOUT_SECOND = 1000   // 默认链接超时
 )
@@ -68,6 +72,7 @@ func (self *Client) initOpt() {
 	self.opt[CLIENT_CONNECTION_TIMEOUT] = CLIENT_DEFAULT_CONNECTION_TIMEOUT_SECOND
 	self.opt[CLIENT_TIMEOUT] = CLIENT_DEFAULT_TIMEOUT_SECOND
 	self.opt[CLIENT_PACKAGER] = CLIENT_DEFAULT_PACKAGER
+	self.opt[CLIENT_MAGIC_NUM] = MAGIC_NUMBER
 
 }
 
@@ -75,17 +80,16 @@ func (self *Client) initOpt() {
 func (self *Client) SetOpt(opt ClientOpt, v interface{}) bool {
 
 	switch opt {
-
 	case CLIENT_CONNECTION_TIMEOUT:
 	case CLIENT_TIMEOUT:
 	case CLIENT_PACKAGER:
+	case CLIENT_MAGIC_NUM:
 		{
 			self.opt[opt] = v
 			return true
 		}
-
 	}
-
+	
 	return false
 }
 
@@ -99,7 +103,7 @@ func (self *Client) sockCall(method string, ret interface{}, params ...interface
 	self.request.Id = rand.Uint32()
 	self.request.Method = method
 	self.request.Protocol.Id = self.request.Id
-	self.request.Protocol.MagicNumber = MAGIC_NUMBER
+	self.request.Protocol.MagicNumber = uint32(self.opt[CLIENT_MAGIC_NUM].(int))
 
 	var pack []byte
 
@@ -145,7 +149,6 @@ func (self *Client) sockCall(method string, ret interface{}, params ...interface
 
 func (self *Client) httpCall(method string, ret interface{}, params ...interface{}) (err error) {
 
-	beego.Debug("start call")
 	if params != nil {
 		self.request.Params = params
 	} else {
@@ -155,7 +158,7 @@ func (self *Client) httpCall(method string, ret interface{}, params ...interface
 	self.request.Id = rand.Uint32()
 	self.request.Method = method
 	self.request.Protocol.Id = self.request.Id
-	self.request.Protocol.MagicNumber = MAGIC_NUMBER
+	self.request.Protocol.MagicNumber = uint32(self.opt[CLIENT_MAGIC_NUM].(int))
 
 	var pack []byte
 
@@ -169,23 +172,37 @@ func (self *Client) httpCall(method string, ret interface{}, params ...interface
 	pack, err = packager.Pack([]byte(self.opt[CLIENT_PACKAGER].(string)), self.request)
 
 	if err != nil {
-		return err
+		return errors.New("[YarClient httpCall] Pack Params Error: " + err.Error())
 	}
 
 	self.request.Protocol.BodyLength = uint32(len(pack) + PACKAGER_LENGTH)
 
 	post_buffer := bytes.NewBuffer(self.request.Protocol.Bytes().Bytes())
 	post_buffer.Write(pack)
-	resp, err := http.Post(self.hostname, "application/json", post_buffer)
+
+	//todo 停止验证HTTPS请求
+	tr := &http.Transport{
+		TLSClientConfig:&tls.Config{InsecureSkipVerify:true},
+	}
+
+	httpClient := &http.Client{
+		Transport:tr,
+		Timeout: time.Duration(self.opt[CLIENT_TIMEOUT].(int)) * time.Millisecond,
+	}
+
+	fmt.Fprintln(os.Stderr,string(post_buffer.Bytes()))
+
+	resp, err := httpClient.Post(self.hostname, "application/json", post_buffer)
+
 	if err != nil {
-		return err
+		return errors.New("[YarClient httpCall] Http Post Error: " + err.Error())
 	}
 
 	protocol_buffer := make([]byte, PROTOCOL_LENGTH+PACKAGER_LENGTH)
 	readLen, err := resp.Body.Read(protocol_buffer)
 
 	if err != nil {
-		return err
+		return errors.New("[YarClient httpCall] Http Response Error: " + err.Error())
 	}
 
 	if readLen < 1 {
@@ -200,13 +217,17 @@ func (self *Client) httpCall(method string, ret interface{}, params ...interface
 	err = packager.Unpack([]byte(self.opt[CLIENT_PACKAGER].(string)), body_buffer, &response)
 
 	if response.Status != ERR_OKEY {
-		return errors.New(response.Error)
+		return errors.New(fmt.Sprintf("[YarClient httpCall] Yar Response Error: %s %d",response.Error,response.Status))
 	}
 
 	//这里需要优化,需要干掉这次pack/unpack
 	pack_data, err := packager.Pack(self.request.Protocol.Packager[:], response.Retval)
 	err = packager.Unpack(self.request.Protocol.Packager[:], pack_data, ret)
-	return err
+	if err != nil {
+		return errors.New("[YarClient httpCall] Unpack Data Error: " + err.Error())
+	}
+
+	return nil
 }
 
 //执行一次rpc请求.
