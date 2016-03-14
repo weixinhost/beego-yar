@@ -12,6 +12,7 @@ import (
 	"time"
 	"crypto/tls"
 	"fmt"
+	"io/ioutil"
 )
 
 type ClientOpt int
@@ -195,20 +196,24 @@ func (self *Client) httpCall(method string, ret interface{}, params ...interface
 		return errors.New("[YarClient httpCall] Http Post Error: " + err.Error())
 	}
 
-	protocol_buffer := make([]byte, PROTOCOL_LENGTH+PACKAGER_LENGTH)
-	readLen, err := resp.Body.Read(protocol_buffer)
+
+	allBody,err := ioutil.ReadAll(resp.Body)
 
 	if err != nil {
 		return errors.New("[YarClient httpCall] Http Response Error: " + err.Error())
 	}
 
-	if readLen < 1 {
-		return errors.New("Empty Response.")
-	}
+	protocol_buffer := allBody[0:PROTOCOL_LENGTH+PACKAGER_LENGTH]
 
 	self.request.Protocol.Init(bytes.NewBuffer(protocol_buffer))
-	body_buffer := make([]byte, self.request.Protocol.BodyLength-PACKAGER_LENGTH)
-	resp.Body.Read(body_buffer)
+
+	bodyTotal :=  self.request.Protocol.BodyLength-PACKAGER_LENGTH
+
+	if uint32(len(allBody) - PROTOCOL_LENGTH+PACKAGER_LENGTH) < bodyTotal {
+		return errors.New("[YarClient httpCall] Http Response Content Error")
+	}
+
+	body_buffer := allBody[PROTOCOL_LENGTH+PACKAGER_LENGTH:]
 
 	response := new(Response)
 	err = packager.Unpack([]byte(self.opt[CLIENT_PACKAGER].(string)), body_buffer, &response)
@@ -216,10 +221,14 @@ func (self *Client) httpCall(method string, ret interface{}, params ...interface
 	if response.Status != ERR_OKEY {
 		return errors.New(fmt.Sprintf("[YarClient httpCall] Yar Response Error: %s %d",response.Error,response.Status))
 	}
-
+	
 	//这里需要优化,需要干掉这次pack/unpack
 	pack_data, err := packager.Pack(self.request.Protocol.Packager[:], response.Retval)
+	if err != nil {
+		return errors.New("[YarClient httpCall] Pack Data Error: " + err.Error())
+	}
 	err = packager.Unpack(self.request.Protocol.Packager[:], pack_data, ret)
+
 	if err != nil {
 		return errors.New("[YarClient httpCall] Unpack Data Error: " + err.Error())
 	}
