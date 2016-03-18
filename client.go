@@ -13,15 +13,18 @@ import (
 	"crypto/tls"
 	"fmt"
 	"io/ioutil"
+	"encoding/binary"
 )
 
 type ClientOpt int
 
 const (
-	CLIENT_CONNECTION_TIMEOUT ClientOpt = 1 //连接超时
-	CLIENT_TIMEOUT            ClientOpt = 2 //整体超时
-	CLIENT_PACKAGER           ClientOpt = 3 //打包协议.目前支持 "json"
-	CLIENT_MAGIC_NUM 		  ClientOpt = 4
+	CLIENT_CONNECTION_TIMEOUT 	ClientOpt = 1 //连接超时
+	CLIENT_TIMEOUT            	ClientOpt = 2 //整体超时
+	CLIENT_PACKAGER           	ClientOpt = 4 //打包协议.目前支持 "json"
+	CLIENT_MAGIC_NUM 		  	ClientOpt = 8
+	CLIENT_ENCRYPT 			  	ClientOpt = 10
+	CLIENT_ENCRYPT_PRIVATE_KEY 	ClientOpt = 12
 )
 
 const (
@@ -78,19 +81,8 @@ func (self *Client) initOpt() {
 
 //配置项操作
 func (self *Client) SetOpt(opt ClientOpt, v interface{}) bool {
-
-	switch opt {
-	case CLIENT_CONNECTION_TIMEOUT:
-	case CLIENT_TIMEOUT:
-	case CLIENT_PACKAGER:
-	case CLIENT_MAGIC_NUM:
-		{
-			self.opt[opt] = v
-			return true
-		}
-	}
-
-	return false
+	self.opt[opt] = v
+	return true
 }
 
 func (self *Client) sockCall(method string, ret interface{}, params ...interface{}) (err error) {
@@ -175,6 +167,51 @@ func (self *Client) httpCall(method string, ret interface{}, params ...interface
 		return errors.New("[YarClient httpCall] Pack Params Error: " + err.Error())
 	}
 
+	e,ok := self.opt[CLIENT_ENCRYPT]
+
+	encrypt := false
+	encrypt_key := ""
+
+	if ok == true {
+		encrypt = e.(bool)
+	}
+
+
+
+	if encrypt {
+
+		e,ok := self.opt[CLIENT_ENCRYPT_PRIVATE_KEY]
+
+		if ok == false{
+			return errors.New("encrypt_private_key empty.")
+		}
+		encrypt_key = e.(string)
+	}
+
+
+	if(encrypt) {
+
+		self.request.Protocol.Encrypt = 1
+		encryptBody := &EncryptBody{
+			Key : []byte(encrypt_key),
+		}
+
+		err := encryptBody.Encrypt(pack)
+
+		if err != nil {
+			return errors.New("[Encrypt] error:" + err.Error())
+		}
+
+		encryptPack := bytes.NewBufferString("")
+
+		binary.Write(encryptPack,binary.BigEndian,encryptBody.BodyLen)
+		binary.Write(encryptPack,binary.BigEndian,encryptBody.RealLen)
+		encryptPack.Write(encryptBody.Body)
+		pack = encryptPack.Bytes()
+	}
+
+
+
 	self.request.Protocol.BodyLength = uint32(len(pack) + PACKAGER_LENGTH)
 
 	post_buffer := bytes.NewBuffer(self.request.Protocol.Bytes().Bytes())
@@ -196,7 +233,6 @@ func (self *Client) httpCall(method string, ret interface{}, params ...interface
 		return errors.New("[YarClient httpCall] Http Post Error: " + err.Error())
 	}
 
-
 	allBody,err := ioutil.ReadAll(resp.Body)
 
 	if err != nil {
@@ -215,13 +251,36 @@ func (self *Client) httpCall(method string, ret interface{}, params ...interface
 
 	body_buffer := allBody[PROTOCOL_LENGTH+PACKAGER_LENGTH:]
 
+
+
+	if self.request.Protocol.Encrypt == 1 {
+
+		encryptBody := &EncryptBody{
+			Key : []byte(encrypt_key),
+			Body: body_buffer[8:],
+		}
+
+		decryptBuffer := bytes.NewReader(body_buffer[:8])
+
+		binary.Read(decryptBuffer,binary.BigEndian,&encryptBody.BodyLen)
+		binary.Read(decryptBuffer,binary.BigEndian,&encryptBody.RealLen)
+
+		data,err := encryptBody.Decrypt()
+
+		if err != nil {
+			return errors.New("[Decrypt] error:" + err.Error())
+		}
+
+		body_buffer = data[:encryptBody.RealLen]
+	}
+
 	response := new(Response)
 	err = packager.Unpack([]byte(self.opt[CLIENT_PACKAGER].(string)), body_buffer, &response)
 
 	if response.Status != ERR_OKEY {
 		return errors.New(fmt.Sprintf("[YarClient httpCall] Yar Response Error: %s %d",response.Error,response.Status))
 	}
-	
+
 	//这里需要优化,需要干掉这次pack/unpack
 	pack_data, err := packager.Pack(self.request.Protocol.Packager[:], response.Retval)
 	if err != nil {
@@ -235,6 +294,8 @@ func (self *Client) httpCall(method string, ret interface{}, params ...interface
 
 	return nil
 }
+
+
 
 //执行一次rpc请求.
 //method为请求的方法名.ret参数必须是一个指针类型,用于接收rpc结果.params为rpc函数的形参列表

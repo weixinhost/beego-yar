@@ -33,7 +33,8 @@ type Header struct {
 	Version     uint16
 	MagicNumber uint32
 	Reserved    uint32
-	Provider    [32]byte
+	Provider    [28]byte
+	Encrypt 	uint32
 	Token       [32]byte
 	BodyLength  uint32
 	Packager    [8]byte
@@ -61,6 +62,7 @@ func (self *Header) Init(payload *bytes.Buffer) bool {
 	binary.Read(payload, binary.BigEndian, &self.MagicNumber)
 	binary.Read(payload, binary.BigEndian, &self.Reserved)
 	binary.Read(payload, binary.BigEndian, &self.Provider)
+	binary.Read(payload, binary.BigEndian, &self.Encrypt)
 	binary.Read(payload, binary.BigEndian, &self.Token)
 	binary.Read(payload, binary.BigEndian, &self.BodyLength)
 	binary.Read(payload, binary.BigEndian, &self.Packager)

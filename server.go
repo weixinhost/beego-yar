@@ -8,6 +8,16 @@ import (
 	"github.com/weixinhost/beego-yar/packager"
 	"reflect"
 	"strings"
+	"encoding/binary"
+)
+
+type ServerOpt int
+
+const (
+
+	SERVER_MAGIC_NUMBER 		= 1
+	SERVER_ENCRYPT 				= 2
+	SERVER_ENCRYPT_PRIVATE_KEY 	= 3
 )
 
 type Server struct {
@@ -15,6 +25,7 @@ type Server struct {
 	class     interface{}
 	methodMap map[string]string
 	body      []byte
+	opt 	  map[ServerOpt]interface{}
 }
 
 func NewServer(ctx *context.Context, class interface{}) *Server {
@@ -22,8 +33,13 @@ func NewServer(ctx *context.Context, class interface{}) *Server {
 	server.class = class
 	server.ctx = ctx
 	server.methodMap = make(map[string]string, 32)
-
+	server.opt = make(map[ServerOpt]interface{},2)
 	return server
+}
+
+func (self *Server)SetOpt(opt ServerOpt,v interface{}) bool {
+	self.opt[opt] = v
+	return true
 }
 
 func (self *Server) Register(rpcName string, methodName string) {
@@ -38,11 +54,49 @@ func (self *Server) getHeader() (*Header, error) {
 
 	header := NewHeaderWithBytes(header_buffer)
 
-	if header.MagicNumber != MAGIC_NUMBER {
+	magicNumber := MAGIC_NUMBER
+
+	e,ok := self.opt[SERVER_MAGIC_NUMBER]
+
+	if ok {
+		magicNumber = e.(uint32)
+	}
+
+	if header.MagicNumber != magicNumber {
 
 		return nil, errors.New("magic number check failed.")
 
 	}
+
+	encrypt := false
+	encryptKey := ""
+
+	e,ok = self.opt[SERVER_ENCRYPT]
+
+	if ok == true {
+		encrypt = e.(bool)
+	}
+
+	if header.Encrypt == 1 {
+		if encrypt == false {
+			return nil,errors.New("this is a encrypt request,but server not support encrypt mode.")
+		}
+
+		e,ok := self.opt[SERVER_ENCRYPT_PRIVATE_KEY]
+
+		if ok == true {
+			encryptKey = e.(string)
+		}
+
+		if len(encryptKey) < 1 {
+			return nil,errors.New("this is a encrypt request,but server not set a encrypt private key..")
+		}
+	}
+
+	if header.Encrypt == 0 && encrypt == true {
+		return nil,errors.New("this server is encrypt,but request is not encrypt mode")
+	}
+
 
 	return header, nil
 
@@ -55,6 +109,43 @@ func (self *Server) getRequest(header *Header) (*Request, error) {
 	body_buffer := self.body[90 : 90+body_len-8]
 
 	request := NewRequest()
+
+	encrypt := false
+	encryptKey := ""
+
+	e,ok := self.opt[SERVER_ENCRYPT]
+
+	if ok == true {
+		encrypt = e.(bool)
+	}
+
+	if encrypt {
+		e,ok := self.opt[SERVER_ENCRYPT_PRIVATE_KEY]
+		if ok == true {
+			encryptKey = e.(string)
+		}
+
+		if len(encryptKey) < 1 {
+			return nil, errors.New("encrypt_private_key is empty.")
+		}
+
+		encryptBody := &EncryptBody{
+			Key : []byte(encryptKey),
+			Body: body_buffer[8:],
+		}
+
+		decryptBuffer := bytes.NewReader(body_buffer[:8])
+
+		binary.Read(decryptBuffer, binary.BigEndian, &encryptBody.BodyLen)
+		binary.Read(decryptBuffer, binary.BigEndian, &encryptBody.RealLen)
+
+		data, err := encryptBody.Decrypt()
+
+		if err != nil {
+			return nil, errors.New("[Decrypt] error:" + err.Error())
+		}
+		body_buffer = data[0:encryptBody.RealLen]
+	}
 
 	err := packager.Unpack(header.Packager[:], body_buffer, request)
 
@@ -72,9 +163,44 @@ func (self *Server) sendResponse(response *Response) error {
 	sendPackData, err := packager.Pack(response.Protocol.Packager[:], response)
 
 	if err != nil {
-
 		return err
 	}
+
+	encrypt := false
+	encryptKey := ""
+
+	e,ok := self.opt[SERVER_ENCRYPT]
+
+	if ok == true {
+		encrypt = e.(bool)
+	}
+
+	if encrypt {
+
+		e,ok := self.opt[SERVER_ENCRYPT_PRIVATE_KEY]
+		if ok == true {
+			encryptKey = e.(string)
+		}
+
+		if len(encryptKey) < 1 {
+			return errors.New("encrypt_private_key is empty.")
+		}
+
+		encryptBody := &EncryptBody{
+			Key : []byte(encryptKey),
+		}
+
+		encryptBody.Encrypt(sendPackData)
+
+		temp := bytes.NewBufferString("")
+
+		binary.Write(temp,binary.BigEndian,encryptBody.BodyLen)
+		binary.Write(temp,binary.BigEndian,encryptBody.RealLen)
+		temp.Write( encryptBody.Body[:encryptBody.BodyLen])
+		sendPackData = temp.Bytes()
+
+	}
+
 	response.Protocol.BodyLength = uint32(len(sendPackData) + 8)
 	self.ctx.ResponseWriter.Write(response.Protocol.Bytes().Bytes())
 	self.ctx.ResponseWriter.Write(sendPackData)
@@ -149,7 +275,7 @@ func (self *Server) Handle() (bool, error) {
 
 		return false, errors.New("read request body error.")
 	}
-
+	
 	header, err := self.getHeader()
 
 	if err != nil {
