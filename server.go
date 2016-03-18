@@ -54,7 +54,7 @@ func (self *Server) getHeader() (*Header, error) {
 
 	header := NewHeaderWithBytes(header_buffer)
 
-	magicNumber := MAGIC_NUMBER
+	var magicNumber uint32 = MAGIC_NUMBER
 
 	e,ok := self.opt[SERVER_MAGIC_NUMBER]
 
@@ -275,7 +275,7 @@ func (self *Server) Handle() (bool, error) {
 
 		return false, errors.New("read request body error.")
 	}
-	
+
 	header, err := self.getHeader()
 
 	if err != nil {
