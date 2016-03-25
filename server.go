@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"strings"
 	"encoding/binary"
+	"fmt"
 )
 
 type ServerOpt int
@@ -43,10 +44,10 @@ func (self *Server)SetOpt(opt ServerOpt,v interface{}) bool {
 }
 
 func (self *Server) Register(rpcName string, methodName string) {
-
 	self.methodMap[strings.ToLower(rpcName)] = methodName
-
 }
+
+
 
 func (self *Server) getHeader() (*Header, error) {
 
@@ -210,6 +211,13 @@ func (self *Server) sendResponse(response *Response) error {
 
 func (self *Server) call(request *Request, response *Response) {
 
+	defer func() {
+		if r := recover(); r != nil {
+			response.Status = ERR_EXCEPTION
+			response.Error = "call handler internal panic:" + fmt.Sprint(r);
+		}
+	}()
+
 	call_params := request.Params.([]interface{})
 
 	class_fv := reflect.ValueOf(self.class)
@@ -252,6 +260,7 @@ func (self *Server) call(request *Request, response *Response) {
 		rs := fv.Call(real_params)
 		if len(rs) < 1 {
 			response.Return(nil)
+			return
 		}
 
 		if len(rs) > 1 {
