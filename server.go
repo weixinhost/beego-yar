@@ -207,7 +207,6 @@ func (self *Server) sendResponse(response *Response) error {
 }
 
 func (self *Server) call(request *Request, response *Response) {
-
 	defer func() {
 		if r := recover(); r != nil {
 			response.Status = ERR_EXCEPTION
@@ -361,7 +360,7 @@ func (self *Server) call(request *Request, response *Response) {
 			}
 			real_params[i] = raw_val.Convert(fv.Type().In(i))
 		}
-		
+
 		rs := fv.Call(real_params)
 		if len(rs) < 1 {
 			response.Return(nil)
