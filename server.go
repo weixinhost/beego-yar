@@ -10,15 +10,15 @@ import (
 	"strings"
 	"encoding/binary"
 	"fmt"
+	"encoding/json"
 )
 
 type ServerOpt int
 
 const (
-
-	SERVER_MAGIC_NUMBER 		= 1
-	SERVER_ENCRYPT 				= 2
-	SERVER_ENCRYPT_PRIVATE_KEY 	= 3
+	SERVER_MAGIC_NUMBER = 1
+	SERVER_ENCRYPT = 2
+	SERVER_ENCRYPT_PRIVATE_KEY = 3
 )
 
 type Server struct {
@@ -26,7 +26,7 @@ type Server struct {
 	class     interface{}
 	methodMap map[string]string
 	body      []byte
-	opt 	  map[ServerOpt]interface{}
+	opt       map[ServerOpt]interface{}
 }
 
 func NewServer(ctx *context.Context, class interface{}) *Server {
@@ -34,11 +34,11 @@ func NewServer(ctx *context.Context, class interface{}) *Server {
 	server.class = class
 	server.ctx = ctx
 	server.methodMap = make(map[string]string, 32)
-	server.opt = make(map[ServerOpt]interface{},2)
+	server.opt = make(map[ServerOpt]interface{}, 2)
 	return server
 }
 
-func (self *Server)SetOpt(opt ServerOpt,v interface{}) bool {
+func (self *Server)SetOpt(opt ServerOpt, v interface{}) bool {
 	self.opt[opt] = v
 	return true
 }
@@ -47,17 +47,15 @@ func (self *Server) Register(rpcName string, methodName string) {
 	self.methodMap[strings.ToLower(rpcName)] = methodName
 }
 
-
-
 func (self *Server) getHeader() (*Header, error) {
 
-	header_buffer := bytes.NewBuffer(self.body[0 : PROTOCOL_LENGTH+PROTOCOL_LENGTH])
+	header_buffer := bytes.NewBuffer(self.body[0 : PROTOCOL_LENGTH + PROTOCOL_LENGTH])
 
 	header := NewHeaderWithBytes(header_buffer)
 
 	var magicNumber uint32 = MAGIC_NUMBER
 
-	e,ok := self.opt[SERVER_MAGIC_NUMBER]
+	e, ok := self.opt[SERVER_MAGIC_NUMBER]
 
 	if ok {
 		magicNumber = e.(uint32)
@@ -72,7 +70,7 @@ func (self *Server) getHeader() (*Header, error) {
 	encrypt := false
 	encryptKey := ""
 
-	e,ok = self.opt[SERVER_ENCRYPT]
+	e, ok = self.opt[SERVER_ENCRYPT]
 
 	if ok == true {
 		encrypt = e.(bool)
@@ -80,24 +78,23 @@ func (self *Server) getHeader() (*Header, error) {
 
 	if header.Encrypt == 1 {
 		if encrypt == false {
-			return nil,errors.New("this is a encrypt request,but server not support encrypt mode.")
+			return nil, errors.New("this is a encrypt request,but server not support encrypt mode.")
 		}
 
-		e,ok := self.opt[SERVER_ENCRYPT_PRIVATE_KEY]
+		e, ok := self.opt[SERVER_ENCRYPT_PRIVATE_KEY]
 
 		if ok == true {
 			encryptKey = e.(string)
 		}
 
 		if len(encryptKey) < 1 {
-			return nil,errors.New("this is a encrypt request,but server not set a encrypt private key..")
+			return nil, errors.New("this is a encrypt request,but server not set a encrypt private key..")
 		}
 	}
 
 	if header.Encrypt == 0 && encrypt == true {
-		return nil,errors.New("this server is encrypt,but request is not encrypt mode")
+		return nil, errors.New("this server is encrypt,but request is not encrypt mode")
 	}
-
 
 	return header, nil
 
@@ -107,21 +104,21 @@ func (self *Server) getRequest(header *Header) (*Request, error) {
 
 	body_len := header.BodyLength
 
-	body_buffer := self.body[90 : 90+body_len-8]
+	body_buffer := self.body[90 : 90 + body_len - 8]
 
 	request := NewRequest()
 
 	encrypt := false
 	encryptKey := ""
 
-	e,ok := self.opt[SERVER_ENCRYPT]
+	e, ok := self.opt[SERVER_ENCRYPT]
 
 	if ok == true {
 		encrypt = e.(bool)
 	}
 
 	if encrypt {
-		e,ok := self.opt[SERVER_ENCRYPT_PRIVATE_KEY]
+		e, ok := self.opt[SERVER_ENCRYPT_PRIVATE_KEY]
 		if ok == true {
 			encryptKey = e.(string)
 		}
@@ -170,7 +167,7 @@ func (self *Server) sendResponse(response *Response) error {
 	encrypt := false
 	encryptKey := ""
 
-	e,ok := self.opt[SERVER_ENCRYPT]
+	e, ok := self.opt[SERVER_ENCRYPT]
 
 	if ok == true {
 		encrypt = e.(bool)
@@ -178,7 +175,7 @@ func (self *Server) sendResponse(response *Response) error {
 
 	if encrypt {
 
-		e,ok := self.opt[SERVER_ENCRYPT_PRIVATE_KEY]
+		e, ok := self.opt[SERVER_ENCRYPT_PRIVATE_KEY]
 		if ok == true {
 			encryptKey = e.(string)
 		}
@@ -195,9 +192,9 @@ func (self *Server) sendResponse(response *Response) error {
 
 		temp := bytes.NewBufferString("")
 
-		binary.Write(temp,binary.BigEndian,encryptBody.BodyLen)
-		binary.Write(temp,binary.BigEndian,encryptBody.RealLen)
-		temp.Write( encryptBody.Body[:encryptBody.BodyLen])
+		binary.Write(temp, binary.BigEndian, encryptBody.BodyLen)
+		binary.Write(temp, binary.BigEndian, encryptBody.RealLen)
+		temp.Write(encryptBody.Body[:encryptBody.BodyLen])
 		sendPackData = temp.Bytes()
 
 	}
@@ -254,9 +251,117 @@ func (self *Server) call(request *Request, response *Response) {
 
 		for i, v := range call_params {
 			raw_val := reflect.ValueOf(v)
+
+			//hack number
+
+
+
+			if raw_val.Type().Name() == "Number" {
+
+				fi := fv.Type().In(i)
+				beego.Debug(i,raw_val.Type().Name(),fi.Kind())
+
+				var coverErr error = nil
+				verify := true
+				nv := v.(json.Number)
+
+				switch fi.Kind() {
+
+				case reflect.Uint8 : {
+					utv,err := nv.Int64()
+					coverErr = err
+					real_params[i] = reflect.ValueOf(uint8(utv))
+					break
+				}
+
+				case reflect.Uint16 : {
+					utv,err := nv.Int64()
+					coverErr = err
+					real_params[i] = reflect.ValueOf(uint16(utv))
+					break
+				}
+
+				case reflect.Uint32 : {
+					utv,err := nv.Int64()
+					coverErr = err
+					real_params[i] = reflect.ValueOf(uint32(utv))
+					break
+				}
+
+				case reflect.Uint64 : {
+					utv,err := nv.Int64()
+					coverErr = err
+					real_params[i] = reflect.ValueOf(uint64(utv))
+					break
+				}
+
+				case reflect.Uint : {
+					utv,err := nv.Int64()
+					coverErr = err
+					real_params[i] = reflect.ValueOf(uint(utv))
+					break
+				}
+
+				case reflect.Int8 : {
+					utv,err := nv.Int64()
+					coverErr = err
+					real_params[i] = reflect.ValueOf(int8(utv))
+					break
+				}
+				case reflect.Int16 : {
+					utv,err := nv.Int64()
+					coverErr = err
+					real_params[i] = reflect.ValueOf(int16(utv))
+					break
+				}
+				case reflect.Int32 : {
+					utv,err := nv.Int64()
+					coverErr = err
+					real_params[i] = reflect.ValueOf(int32(utv))
+					break
+				}
+				case reflect.Int64 : {
+					utv,err := nv.Int64()
+					coverErr = err
+					real_params[i] = reflect.ValueOf(int64(utv))
+					break
+				}
+				case reflect.Int : {
+					utv,err := nv.Int64()
+					coverErr = err
+					real_params[i] = reflect.ValueOf(int(utv))
+					break
+				}
+				case reflect.Float32 : {
+					utv,err := nv.Float64()
+					coverErr = err
+					real_params[i] = reflect.ValueOf(float32(utv))
+					break
+				}
+				case reflect.Float64 : {
+					utv,err := nv.Float64()
+					coverErr = err
+					real_params[i] = reflect.ValueOf(float64(utv))
+					break
+				}
+				default: {
+					verify = false
+				}
+				}
+
+				if verify == true {
+					continue
+				}
+
+				if coverErr != nil {
+					response.Status = ERR_EMPTY_RESPONSE
+					response.Error = "cover number type error:" + coverErr.Error()
+					return
+				}
+			}
 			real_params[i] = raw_val.Convert(fv.Type().In(i))
 		}
-
+		
 		rs := fv.Call(real_params)
 		if len(rs) < 1 {
 			response.Return(nil)
