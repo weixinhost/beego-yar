@@ -105,9 +105,6 @@ func (self *Client) sockCall(method string, ret interface{}, params ...interface
 		}
 	}
 
-
-
-
 	pack, err = packager.Pack([]byte(self.opt[CLIENT_PACKAGER].(string)), self.request)
 
 	if err != nil {
@@ -152,7 +149,7 @@ func (self *Client) httpCall(method string, ret interface{}, params ...interface
 	self.request.Id = rand.Uint32()
 	self.request.Method = method
 	self.request.Protocol.Id = self.request.Id
-	self.request.Protocol.MagicNumber = uint32(self.opt[CLIENT_MAGIC_NUM].(int))
+	self.request.Protocol.MagicNumber = uint32(self.opt[CLIENT_MAGIC_NUM].(uint32))
 
 	var pack []byte
 
