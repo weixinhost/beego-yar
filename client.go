@@ -95,16 +95,18 @@ func (self *Client) sockCall(method string, ret interface{}, params ...interface
 	self.request.Id = rand.Uint32()
 	self.request.Method = method
 	self.request.Protocol.Id = self.request.Id
-	self.request.Protocol.MagicNumber = uint32(self.opt[CLIENT_MAGIC_NUM].(int))
+	self.request.Protocol.MagicNumber = uint32(self.opt[CLIENT_MAGIC_NUM].(uint32))
 
 	var pack []byte
 
 	if len(self.opt[CLIENT_PACKAGER].(string)) < 8 {
-
 		for i := 0; i < len(self.opt[CLIENT_PACKAGER].(string)); i++ {
 			self.request.Protocol.Packager[i] = self.opt[CLIENT_PACKAGER].(string)[i]
 		}
 	}
+
+
+
 
 	pack, err = packager.Pack([]byte(self.opt[CLIENT_PACKAGER].(string)), self.request)
 
