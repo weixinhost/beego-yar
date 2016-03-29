@@ -19,6 +19,7 @@ const (
 	SERVER_MAGIC_NUMBER = 1
 	SERVER_ENCRYPT = 2
 	SERVER_ENCRYPT_PRIVATE_KEY = 3
+	SERVER_SUPPORT_DYANIMIC_PARAM = 4
 )
 
 type Server struct {
@@ -207,6 +208,7 @@ func (self *Server) sendResponse(response *Response) error {
 }
 
 func (self *Server) call(request *Request, response *Response) {
+
 	defer func() {
 		if r := recover(); r != nil {
 			response.Status = ERR_EXCEPTION
@@ -237,24 +239,44 @@ func (self *Server) call(request *Request, response *Response) {
 
 	fv := class_fv.MethodByName(methodMap)
 
-	if len(call_params) != fv.Type().NumIn() {
+	supportedDynamic := false
 
-		response.Status = ERR_EMPTY_RESPONSE
-		response.Error = "mismatch call param nums"
-		return
+	e, ok := self.opt[SERVER_SUPPORT_DYANIMIC_PARAM]
+
+	if ok {
+		supportedDynamic = e.(bool)
 	}
 
-	real_params := make([]reflect.Value, len(call_params))
+	var real_params []reflect.Value
+
+
+	if supportedDynamic {
+		real_params = make([]reflect.Value, fv.Type().NumIn())
+	}else{
+
+		if len(call_params) != fv.Type().NumIn() {
+			response.Status = ERR_EMPTY_RESPONSE
+			response.Error = "mismatch handler param size"
+			return
+		}
+
+		real_params = make([]reflect.Value, len(call_params))
+	}
+
+
 
 	func() {
 
-		for i, v := range call_params {
+		for i := 0 ;i < len(real_params);i++ {
+			if i >= len(call_params){
+				real_params[i] = reflect.Zero(fv.Type().In(i))
+				continue
+			}
+
+			v := call_params[i]
+
 			raw_val := reflect.ValueOf(v)
-
 			//hack number
-
-
-
 			if raw_val.Type().Name() == "Number" {
 
 				fi := fv.Type().In(i)
@@ -377,6 +399,8 @@ func (self *Server) call(request *Request, response *Response) {
 	}()
 
 }
+
+
 
 func (self *Server) Handle() (bool, error) {
 
