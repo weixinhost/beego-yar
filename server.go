@@ -11,6 +11,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"encoding/json"
+	"runtime/debug"
 )
 
 type ServerOpt int
@@ -213,6 +214,7 @@ func (self *Server) call(request *Request, response *Response) {
 		if r := recover(); r != nil {
 			response.Status = ERR_EXCEPTION
 			response.Error = "call handler internal panic:" + fmt.Sprint(r);
+			debug.PrintStack()
 		}
 	}()
 
