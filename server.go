@@ -373,15 +373,16 @@ func (self *Server) call(request *Request, response *Response) {
 				}
 				}
 
-				if verify == true {
-					continue
-				}
-
 				if coverErr != nil {
 					response.Status = ERR_EMPTY_RESPONSE
 					response.Error = "cover number type error:" + coverErr.Error()
 					return
 				}
+
+				if verify == true {
+					continue
+				}
+				
 			}
 
 			if raw_val.Type().Name() == "string" {
@@ -493,15 +494,17 @@ func (self *Server) call(request *Request, response *Response) {
 
 				}
 
-				if verify == true {
-					continue
-				}
-
 				if coverErr != nil {
 					response.Status = ERR_EMPTY_RESPONSE
 					response.Error = "cover string to number error:" + coverErr.Error()
 					return
 				}
+
+				if verify == true {
+					continue
+				}
+
+
 			}
 
 			real_params[i] = raw_val.Convert(fv.Type().In(i))
