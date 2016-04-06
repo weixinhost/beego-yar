@@ -1,7 +1,7 @@
 package packager
 
 import (
-	"encoding/json"
+	"github.com/imiskolee/encoding/json"
 	"strings"
 )
 
