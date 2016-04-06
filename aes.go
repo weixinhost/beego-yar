@@ -3,15 +3,15 @@ package beego_yar
 import "crypto/cipher"
 
 type ecb struct {
-	b cipher.Block
+	b         cipher.Block
 	blockSize int
 }
 
 func newECB(b cipher.Block) *ecb {
 
 	return &ecb{
-		b : b,
-		blockSize:b.BlockSize(),
+		b:         b,
+		blockSize: b.BlockSize(),
 	}
 }
 
@@ -60,5 +60,3 @@ func (x *ecbDecrypter) CryptBlocks(dst, src []byte) {
 		dst = dst[x.blockSize:]
 	}
 }
-
-

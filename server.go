@@ -2,25 +2,25 @@ package beego_yar
 
 import (
 	"bytes"
+	"encoding/binary"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/astaxie/beego"
 	"github.com/astaxie/beego/context"
 	"github.com/weixinhost/beego-yar/packager"
 	"reflect"
-	"strings"
-	"encoding/binary"
-	"fmt"
-	"encoding/json"
 	"runtime/debug"
 	"strconv"
+	"strings"
 )
 
 type ServerOpt int
 
 const (
-	SERVER_MAGIC_NUMBER = 1
-	SERVER_ENCRYPT = 2
-	SERVER_ENCRYPT_PRIVATE_KEY = 3
+	SERVER_MAGIC_NUMBER           = 1
+	SERVER_ENCRYPT                = 2
+	SERVER_ENCRYPT_PRIVATE_KEY    = 3
 	SERVER_SUPPORT_DYANIMIC_PARAM = 4
 )
 
@@ -41,7 +41,7 @@ func NewServer(ctx *context.Context, class interface{}) *Server {
 	return server
 }
 
-func (self *Server)SetOpt(opt ServerOpt, v interface{}) bool {
+func (self *Server) SetOpt(opt ServerOpt, v interface{}) bool {
 	self.opt[opt] = v
 	return true
 }
@@ -52,7 +52,7 @@ func (self *Server) Register(rpcName string, methodName string) {
 
 func (self *Server) getHeader() (*Header, error) {
 
-	header_buffer := bytes.NewBuffer(self.body[0 : PROTOCOL_LENGTH + PROTOCOL_LENGTH])
+	header_buffer := bytes.NewBuffer(self.body[0 : PROTOCOL_LENGTH+PROTOCOL_LENGTH])
 
 	header := NewHeaderWithBytes(header_buffer)
 
@@ -107,7 +107,7 @@ func (self *Server) getRequest(header *Header) (*Request, error) {
 
 	body_len := header.BodyLength
 
-	body_buffer := self.body[90 : 90 + body_len - 8]
+	body_buffer := self.body[90 : 90+body_len-8]
 
 	request := NewRequest()
 
@@ -131,7 +131,7 @@ func (self *Server) getRequest(header *Header) (*Request, error) {
 		}
 
 		encryptBody := &EncryptBody{
-			Key : []byte(encryptKey),
+			Key:  []byte(encryptKey),
 			Body: body_buffer[8:],
 		}
 
@@ -188,7 +188,7 @@ func (self *Server) sendResponse(response *Response) error {
 		}
 
 		encryptBody := &EncryptBody{
-			Key : []byte(encryptKey),
+			Key: []byte(encryptKey),
 		}
 
 		encryptBody.Encrypt(sendPackData)
@@ -214,7 +214,7 @@ func (self *Server) call(request *Request, response *Response) {
 	defer func() {
 		if r := recover(); r != nil {
 			response.Status = ERR_EXCEPTION
-			response.Error = "call handler internal panic:" + fmt.Sprint(r);
+			response.Error = "call handler internal panic:" + fmt.Sprint(r)
 			debug.PrintStack()
 		}
 	}()
@@ -252,10 +252,9 @@ func (self *Server) call(request *Request, response *Response) {
 
 	var real_params []reflect.Value
 
-
 	if supportedDynamic {
 		real_params = make([]reflect.Value, fv.Type().NumIn())
-	}else{
+	} else {
 
 		if len(call_params) != fv.Type().NumIn() {
 			response.Status = ERR_EMPTY_RESPONSE
@@ -268,8 +267,8 @@ func (self *Server) call(request *Request, response *Response) {
 
 	func() {
 
-		for i := 0 ;i < len(real_params);i++ {
-			if i >= len(call_params){
+		for i := 0; i < len(real_params); i++ {
+			if i >= len(call_params) {
 				real_params[i] = reflect.Zero(fv.Type().In(i))
 				continue
 			}
@@ -288,89 +287,100 @@ func (self *Server) call(request *Request, response *Response) {
 
 				switch fi.Kind() {
 
-				case reflect.Uint8 : {
-					utv,err := nv.Int64()
-					coverErr = err
-					real_params[i] = reflect.ValueOf(uint8(utv))
-					break
-				}
+				case reflect.Uint8:
+					{
+						utv, err := nv.Int64()
+						coverErr = err
+						real_params[i] = reflect.ValueOf(uint8(utv))
+						break
+					}
 
-				case reflect.Uint16 : {
-					utv,err := nv.Int64()
-					coverErr = err
-					real_params[i] = reflect.ValueOf(uint16(utv))
-					break
-				}
+				case reflect.Uint16:
+					{
+						utv, err := nv.Int64()
+						coverErr = err
+						real_params[i] = reflect.ValueOf(uint16(utv))
+						break
+					}
 
-				case reflect.Uint32 : {
-					utv,err := nv.Int64()
-					coverErr = err
-					real_params[i] = reflect.ValueOf(uint32(utv))
-					break
-				}
+				case reflect.Uint32:
+					{
+						utv, err := nv.Int64()
+						coverErr = err
+						real_params[i] = reflect.ValueOf(uint32(utv))
+						break
+					}
 
-				case reflect.Uint64 : {
-					utv,err := nv.Int64()
-					coverErr = err
-					real_params[i] = reflect.ValueOf(uint64(utv))
-					break
-				}
+				case reflect.Uint64:
+					{
+						utv, err := nv.Int64()
+						coverErr = err
+						real_params[i] = reflect.ValueOf(uint64(utv))
+						break
+					}
 
-				case reflect.Uint : {
-					utv,err := nv.Int64()
-					coverErr = err
-					real_params[i] = reflect.ValueOf(uint(utv))
-					break
-				}
+				case reflect.Uint:
+					{
+						utv, err := nv.Int64()
+						coverErr = err
+						real_params[i] = reflect.ValueOf(uint(utv))
+						break
+					}
 
-				case reflect.Int8 : {
-					utv,err := nv.Int64()
-					coverErr = err
-					real_params[i] = reflect.ValueOf(int8(utv))
-					break
-				}
-				case reflect.Int16 : {
-					utv,err := nv.Int64()
-					coverErr = err
-					real_params[i] = reflect.ValueOf(int16(utv))
-					break
-				}
-				case reflect.Int32 : {
-					utv,err := nv.Int64()
-					coverErr = err
-					real_params[i] = reflect.ValueOf(int32(utv))
-					break
-				}
-				case reflect.Int64 : {
-					utv,err := nv.Int64()
-					coverErr = err
-					real_params[i] = reflect.ValueOf(int64(utv))
-					break
-				}
-				case reflect.Int : {
-					utv,err := nv.Int64()
-					coverErr = err
-					real_params[i] = reflect.ValueOf(int(utv))
-					break
-				}
-				case reflect.Float32 : {
-					utv,err := nv.Float64()
-					coverErr = err
-					real_params[i] = reflect.ValueOf(float32(utv))
-					break
-				}
-				case reflect.Float64 : {
-					utv,err := nv.Float64()
-					coverErr = err
-					real_params[i] = reflect.ValueOf(float64(utv))
-					break
-				}
+				case reflect.Int8:
+					{
+						utv, err := nv.Int64()
+						coverErr = err
+						real_params[i] = reflect.ValueOf(int8(utv))
+						break
+					}
+				case reflect.Int16:
+					{
+						utv, err := nv.Int64()
+						coverErr = err
+						real_params[i] = reflect.ValueOf(int16(utv))
+						break
+					}
+				case reflect.Int32:
+					{
+						utv, err := nv.Int64()
+						coverErr = err
+						real_params[i] = reflect.ValueOf(int32(utv))
+						break
+					}
+				case reflect.Int64:
+					{
+						utv, err := nv.Int64()
+						coverErr = err
+						real_params[i] = reflect.ValueOf(int64(utv))
+						break
+					}
+				case reflect.Int:
+					{
+						utv, err := nv.Int64()
+						coverErr = err
+						real_params[i] = reflect.ValueOf(int(utv))
+						break
+					}
+				case reflect.Float32:
+					{
+						utv, err := nv.Float64()
+						coverErr = err
+						real_params[i] = reflect.ValueOf(float32(utv))
+						break
+					}
+				case reflect.Float64:
+					{
+						utv, err := nv.Float64()
+						coverErr = err
+						real_params[i] = reflect.ValueOf(float64(utv))
+						break
+					}
 
-
-
-				default: {
-					verify = false
-				}
+				default:
+					{
+						verify = false
+					}
 				}
 
 				if coverErr != nil {
@@ -382,7 +392,7 @@ func (self *Server) call(request *Request, response *Response) {
 				if verify == true {
 					continue
 				}
-				
+
 			}
 
 			if raw_val.Type().Name() == "string" {
@@ -392,103 +402,115 @@ func (self *Server) call(request *Request, response *Response) {
 
 				switch fv.Type().In(i).Kind() {
 
-				case reflect.Uint8 : {
+				case reflect.Uint8:
+					{
 
-					n,e := strconv.ParseUint(raw_val.String(),10,64)
-					coverErr = e
-					real_params[i] = reflect.ValueOf(uint8(n))
-					break
-				}
-				case reflect.Uint16: {
+						n, e := strconv.ParseUint(raw_val.String(), 10, 64)
+						coverErr = e
+						real_params[i] = reflect.ValueOf(uint8(n))
+						break
+					}
+				case reflect.Uint16:
+					{
 
-					n,e := strconv.ParseUint(raw_val.String(),10,64)
-					coverErr = e
-					real_params[i] = reflect.ValueOf(uint16(n))
-					break
+						n, e := strconv.ParseUint(raw_val.String(), 10, 64)
+						coverErr = e
+						real_params[i] = reflect.ValueOf(uint16(n))
+						break
 
-				}
-				case reflect.Uint32: {
-					n,e := strconv.ParseUint(raw_val.String(),10,64)
-					coverErr = e
-					real_params[i] = reflect.ValueOf(uint32(n))
-					break
+					}
+				case reflect.Uint32:
+					{
+						n, e := strconv.ParseUint(raw_val.String(), 10, 64)
+						coverErr = e
+						real_params[i] = reflect.ValueOf(uint32(n))
+						break
 
-				}
-				case reflect.Uint64:  {
+					}
+				case reflect.Uint64:
+					{
 
-					n,e := strconv.ParseUint(raw_val.String(),10,64)
-					coverErr = e
-					real_params[i] = reflect.ValueOf(uint64(n))
-					break
+						n, e := strconv.ParseUint(raw_val.String(), 10, 64)
+						coverErr = e
+						real_params[i] = reflect.ValueOf(uint64(n))
+						break
 
-				}
-				case reflect.Uint:{
+					}
+				case reflect.Uint:
+					{
 
-					n,e := strconv.ParseUint(raw_val.String(),10,64)
-					coverErr = e
-					real_params[i] = reflect.ValueOf(uint(n))
-					break
+						n, e := strconv.ParseUint(raw_val.String(), 10, 64)
+						coverErr = e
+						real_params[i] = reflect.ValueOf(uint(n))
+						break
 
-				}
+					}
 
-				case reflect.Int8:{
+				case reflect.Int8:
+					{
 
-					n,e := strconv.ParseInt(raw_val.String(),10,64)
-					coverErr = e
-					real_params[i] = reflect.ValueOf(int8(n))
-					break
+						n, e := strconv.ParseInt(raw_val.String(), 10, 64)
+						coverErr = e
+						real_params[i] = reflect.ValueOf(int8(n))
+						break
 
+					}
+				case reflect.Int16:
+					{
 
-				}
-				case reflect.Int16:{
+						n, e := strconv.ParseInt(raw_val.String(), 10, 64)
+						coverErr = e
+						real_params[i] = reflect.ValueOf(int16(n))
+						break
 
-					n,e := strconv.ParseInt(raw_val.String(),10,64)
-					coverErr = e
-					real_params[i] = reflect.ValueOf(int16(n))
-					break
+					}
+				case reflect.Int32:
+					{
 
-				}
-				case reflect.Int32:{
+						n, e := strconv.ParseInt(raw_val.String(), 10, 64)
+						coverErr = e
+						real_params[i] = reflect.ValueOf(int32(n))
+						break
 
-					n,e := strconv.ParseInt(raw_val.String(),10,64)
-					coverErr = e
-					real_params[i] = reflect.ValueOf(int32(n))
-					break
+					}
+				case reflect.Int64:
+					{
 
-				}
-				case reflect.Int64:{
+						n, e := strconv.ParseInt(raw_val.String(), 10, 64)
+						coverErr = e
+						real_params[i] = reflect.ValueOf(int64(n))
+						break
 
-					n,e := strconv.ParseInt(raw_val.String(),10,64)
-					coverErr = e
-					real_params[i] = reflect.ValueOf(int64(n))
-					break
+					}
 
-				}
+				case reflect.Int:
+					{
 
-				case reflect.Int:{
+						n, e := strconv.ParseInt(raw_val.String(), 10, 64)
+						coverErr = e
+						real_params[i] = reflect.ValueOf(int(n))
+						break
 
-					n,e := strconv.ParseInt(raw_val.String(),10,64)
-					coverErr = e
-					real_params[i] = reflect.ValueOf(int(n))
-					break
+					}
 
-				}
+				case reflect.Float32:
+					{
+						n, e := strconv.ParseFloat(raw_val.String(), fv.Type().In(i).Bits())
+						coverErr = e
+						real_params[i] = reflect.ValueOf(float32(n))
+						break
+					}
 
-				case reflect.Float32:{
-					n,e := strconv.ParseFloat(raw_val.String(),fv.Type().In(i).Bits())
-					coverErr = e
-					real_params[i] = reflect.ValueOf(float32(n))
-					break
-				}
+				case reflect.Float64:
+					{
+						n, e := strconv.ParseFloat(raw_val.String(), fv.Type().In(i).Bits())
+						coverErr = e
+						real_params[i] = reflect.ValueOf(float64(n))
+						break
+					}
 
-				case reflect.Float64:{
-					n,e := strconv.ParseFloat(raw_val.String(),fv.Type().In(i).Bits())
-					coverErr = e
-					real_params[i] = reflect.ValueOf(float64(n))
-					break
-				}
-
-					default:{
+				default:
+					{
 						verify = false
 					}
 
@@ -503,7 +525,6 @@ func (self *Server) call(request *Request, response *Response) {
 				if verify == true {
 					continue
 				}
-
 
 			}
 
@@ -526,8 +547,6 @@ func (self *Server) call(request *Request, response *Response) {
 	}()
 
 }
-
-
 
 func (self *Server) Handle() (bool, error) {
 

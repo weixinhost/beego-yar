@@ -34,7 +34,7 @@ type Header struct {
 	MagicNumber uint32
 	Reserved    uint32
 	Provider    [28]byte
-	Encrypt 	uint32
+	Encrypt     uint32
 	Token       [32]byte
 	BodyLength  uint32
 	Packager    [8]byte

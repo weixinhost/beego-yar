@@ -2,29 +2,29 @@ package beego_yar
 
 import (
 	"bytes"
+	"crypto/tls"
+	"encoding/binary"
 	"encoding/gob"
 	"errors"
+	"fmt"
 	"github.com/weixinhost/beego-yar/packager"
 	"github.com/weixinhost/beego-yar/transports"
+	"io/ioutil"
 	"math/rand"
 	"net/http"
 	"strings"
 	"time"
-	"crypto/tls"
-	"fmt"
-	"io/ioutil"
-	"encoding/binary"
 )
 
 type ClientOpt int
 
 const (
-	CLIENT_CONNECTION_TIMEOUT 	ClientOpt = 1 //连接超时
-	CLIENT_TIMEOUT            	ClientOpt = 2 //整体超时
-	CLIENT_PACKAGER           	ClientOpt = 4 //打包协议.目前支持 "json"
-	CLIENT_MAGIC_NUM 		  	ClientOpt = 8
-	CLIENT_ENCRYPT 			  	ClientOpt = 10
-	CLIENT_ENCRYPT_PRIVATE_KEY 	ClientOpt = 12
+	CLIENT_CONNECTION_TIMEOUT  ClientOpt = 1 //连接超时
+	CLIENT_TIMEOUT             ClientOpt = 2 //整体超时
+	CLIENT_PACKAGER            ClientOpt = 4 //打包协议.目前支持 "json"
+	CLIENT_MAGIC_NUM           ClientOpt = 8
+	CLIENT_ENCRYPT             ClientOpt = 10
+	CLIENT_ENCRYPT_PRIVATE_KEY ClientOpt = 12
 )
 
 const (
@@ -166,7 +166,7 @@ func (self *Client) httpCall(method string, ret interface{}, params ...interface
 		return errors.New("[YarClient httpCall] Pack Params Error: " + err.Error())
 	}
 
-	e,ok := self.opt[CLIENT_ENCRYPT]
+	e, ok := self.opt[CLIENT_ENCRYPT]
 
 	encrypt := false
 	encrypt_key := ""
@@ -175,24 +175,21 @@ func (self *Client) httpCall(method string, ret interface{}, params ...interface
 		encrypt = e.(bool)
 	}
 
-
-
 	if encrypt {
 
-		e,ok := self.opt[CLIENT_ENCRYPT_PRIVATE_KEY]
+		e, ok := self.opt[CLIENT_ENCRYPT_PRIVATE_KEY]
 
-		if ok == false{
+		if ok == false {
 			return errors.New("encrypt_private_key empty.")
 		}
 		encrypt_key = e.(string)
 	}
 
-
-	if(encrypt) {
+	if encrypt {
 
 		self.request.Protocol.Encrypt = 1
 		encryptBody := &EncryptBody{
-			Key : []byte(encrypt_key),
+			Key: []byte(encrypt_key),
 		}
 
 		err := encryptBody.Encrypt(pack)
@@ -203,13 +200,11 @@ func (self *Client) httpCall(method string, ret interface{}, params ...interface
 
 		encryptPack := bytes.NewBufferString("")
 
-		binary.Write(encryptPack,binary.BigEndian,encryptBody.BodyLen)
-		binary.Write(encryptPack,binary.BigEndian,encryptBody.RealLen)
+		binary.Write(encryptPack, binary.BigEndian, encryptBody.BodyLen)
+		binary.Write(encryptPack, binary.BigEndian, encryptBody.RealLen)
 		encryptPack.Write(encryptBody.Body)
 		pack = encryptPack.Bytes()
 	}
-
-
 
 	self.request.Protocol.BodyLength = uint32(len(pack) + PACKAGER_LENGTH)
 
@@ -218,12 +213,12 @@ func (self *Client) httpCall(method string, ret interface{}, params ...interface
 
 	//todo 停止验证HTTPS请求
 	tr := &http.Transport{
-		TLSClientConfig:&tls.Config{InsecureSkipVerify:true},
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
 
 	httpClient := &http.Client{
-		Transport:tr,
-		Timeout: time.Duration(self.opt[CLIENT_TIMEOUT].(int)) * time.Millisecond,
+		Transport: tr,
+		Timeout:   time.Duration(self.opt[CLIENT_TIMEOUT].(int)) * time.Millisecond,
 	}
 
 	resp, err := httpClient.Post(self.hostname, "application/json", post_buffer)
@@ -232,39 +227,37 @@ func (self *Client) httpCall(method string, ret interface{}, params ...interface
 		return errors.New("[YarClient httpCall] Http Post Error: " + err.Error())
 	}
 
-	allBody,err := ioutil.ReadAll(resp.Body)
+	allBody, err := ioutil.ReadAll(resp.Body)
 
 	if err != nil {
 		return errors.New("[YarClient httpCall] Http Response Error: " + err.Error())
 	}
 
-	protocol_buffer := allBody[0:PROTOCOL_LENGTH+PACKAGER_LENGTH]
+	protocol_buffer := allBody[0 : PROTOCOL_LENGTH+PACKAGER_LENGTH]
 
 	self.request.Protocol.Init(bytes.NewBuffer(protocol_buffer))
 
-	bodyTotal :=  self.request.Protocol.BodyLength-PACKAGER_LENGTH
+	bodyTotal := self.request.Protocol.BodyLength - PACKAGER_LENGTH
 
-	if uint32(len(allBody) - PROTOCOL_LENGTH+PACKAGER_LENGTH) < bodyTotal {
+	if uint32(len(allBody)-PROTOCOL_LENGTH+PACKAGER_LENGTH) < bodyTotal {
 		return errors.New("[YarClient httpCall] Http Response Content Error")
 	}
 
 	body_buffer := allBody[PROTOCOL_LENGTH+PACKAGER_LENGTH:]
 
-
-
 	if self.request.Protocol.Encrypt == 1 {
 
 		encryptBody := &EncryptBody{
-			Key : []byte(encrypt_key),
+			Key:  []byte(encrypt_key),
 			Body: body_buffer[8:],
 		}
 
 		decryptBuffer := bytes.NewReader(body_buffer[:8])
 
-		binary.Read(decryptBuffer,binary.BigEndian,&encryptBody.BodyLen)
-		binary.Read(decryptBuffer,binary.BigEndian,&encryptBody.RealLen)
+		binary.Read(decryptBuffer, binary.BigEndian, &encryptBody.BodyLen)
+		binary.Read(decryptBuffer, binary.BigEndian, &encryptBody.RealLen)
 
-		data,err := encryptBody.Decrypt()
+		data, err := encryptBody.Decrypt()
 
 		if err != nil {
 			return errors.New("[Decrypt] error:" + err.Error())
@@ -277,7 +270,7 @@ func (self *Client) httpCall(method string, ret interface{}, params ...interface
 	err = packager.Unpack([]byte(self.opt[CLIENT_PACKAGER].(string)), body_buffer, &response)
 
 	if response.Status != ERR_OKEY {
-		return errors.New(fmt.Sprintf("[YarClient httpCall] Yar Response Error: %s %d",response.Error,response.Status))
+		return errors.New(fmt.Sprintf("[YarClient httpCall] Yar Response Error: %s %d", response.Error, response.Status))
 	}
 
 	//这里需要优化,需要干掉这次pack/unpack
@@ -293,8 +286,6 @@ func (self *Client) httpCall(method string, ret interface{}, params ...interface
 
 	return nil
 }
-
-
 
 //执行一次rpc请求.
 //method为请求的方法名.ret参数必须是一个指针类型,用于接收rpc结果.params为rpc函数的形参列表

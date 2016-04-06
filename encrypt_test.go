@@ -9,11 +9,10 @@ func Test_Encrypt(t *testing.T) {
 	data := "abcdefsfdgskldjfglkwejiojlksdnfgoe23482374204203shldnfls"
 
 	body := &EncryptBody{
-		Key : []byte(key),
+		Key: []byte(key),
 	}
-	body.Encrypt([]byte(data));
-	decrypt,err:= body.Decrypt()
+	body.Encrypt([]byte(data))
+	decrypt, err := body.Decrypt()
 
-	t.Error(err,string(decrypt[:body.RealLen]))
+	t.Error(err, string(decrypt[:body.RealLen]))
 }
-

@@ -1,36 +1,34 @@
 package beego_yar
 
 import (
-	"crypto/md5"
 	"crypto/aes"
+	"crypto/md5"
 )
 
 const (
 	BLOCK_SIZE = 16
 )
 
-
 // aes 128 ecb
 
 type EncryptBody struct {
-
-	Key 		[]byte
-	BodyLen 	uint32
-	RealLen 	uint32
-	Body 		[]byte
+	Key     []byte
+	BodyLen uint32
+	RealLen uint32
+	Body    []byte
 }
 
-func (this *EncryptBody)Encrypt(body []byte) error {
+func (this *EncryptBody) Encrypt(body []byte) error {
 	key := encodeKey(this.Key)
-	this.Body = make([]byte,0)
-	block,err := aes.NewCipher(key)
+	this.Body = make([]byte, 0)
+	block, err := aes.NewCipher(key)
 
 	if err != nil {
 		return err
 	}
 
 	var used int = 0
-	var len  int = len(body)
+	var len int = len(body)
 	this.RealLen = uint32(len)
 
 	ecb := NewECBEncrypter(block)
@@ -44,18 +42,18 @@ func (this *EncryptBody)Encrypt(body []byte) error {
 
 		copyed := BLOCK_SIZE
 
-		if len - used < BLOCK_SIZE {
+		if len-used < BLOCK_SIZE {
 			copyed = len - used
 		}
 
-		for i:= 0;i<copyed;i++ {
-			text[i] = body[used +i]
+		for i := 0; i < copyed; i++ {
+			text[i] = body[used+i]
 		}
 
 		var crypted [BLOCK_SIZE]byte
 
 		ecb.CryptBlocks(crypted[:], text[:])
-		this.Body = append(this.Body,crypted[:]...)
+		this.Body = append(this.Body, crypted[:]...)
 		used += BLOCK_SIZE
 	}
 
@@ -64,18 +62,17 @@ func (this *EncryptBody)Encrypt(body []byte) error {
 
 }
 
-
-func (this *EncryptBody)Decrypt() ([]byte,error) {
+func (this *EncryptBody) Decrypt() ([]byte, error) {
 
 	key := encodeKey(this.Key)
-	block,err := aes.NewCipher(key)
+	block, err := aes.NewCipher(key)
 
 	if err != nil {
-		return nil,err
+		return nil, err
 	}
 
 	var used int = 0
-	var len  int =  int(this.BodyLen)
+	var len int = int(this.BodyLen)
 	var body []byte
 
 	ecb := NewECBDecrypter(block)
@@ -89,29 +86,28 @@ func (this *EncryptBody)Decrypt() ([]byte,error) {
 
 		copyed := BLOCK_SIZE
 
-		if len - used < BLOCK_SIZE {
-			copyed = len -used
+		if len-used < BLOCK_SIZE {
+			copyed = len - used
 		}
 
-		for i:= 0;i<copyed;i++ {
-			text[i] = this.Body[used +i]
+		for i := 0; i < copyed; i++ {
+			text[i] = this.Body[used+i]
 		}
 
 		var crypted [BLOCK_SIZE]byte
 
 		ecb.CryptBlocks(crypted[:], text[:])
-		body = append(body,crypted[:]...)
+		body = append(body, crypted[:]...)
 		used += BLOCK_SIZE
 	}
 
-	return body,nil
+	return body, nil
 
 }
 
-func encodeKey(key []byte) []byte{
+func encodeKey(key []byte) []byte {
 
 	md5 := md5.New()
 	md5.Write(key)
 	return md5.Sum(nil)
 }
-
