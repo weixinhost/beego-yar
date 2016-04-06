@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"encoding/json"
 	"runtime/debug"
+	"strconv"
 )
 
 type ServerOpt int
@@ -265,8 +266,6 @@ func (self *Server) call(request *Request, response *Response) {
 		real_params = make([]reflect.Value, len(call_params))
 	}
 
-
-
 	func() {
 
 		for i := 0 ;i < len(real_params);i++ {
@@ -278,12 +277,11 @@ func (self *Server) call(request *Request, response *Response) {
 			v := call_params[i]
 
 			raw_val := reflect.ValueOf(v)
+
 			//hack number
 			if raw_val.Type().Name() == "Number" {
 
 				fi := fv.Type().In(i)
-				beego.Debug(i,raw_val.Type().Name(),fi.Kind())
-
 				var coverErr error = nil
 				verify := true
 				nv := v.(json.Number)
@@ -367,6 +365,9 @@ func (self *Server) call(request *Request, response *Response) {
 					real_params[i] = reflect.ValueOf(float64(utv))
 					break
 				}
+
+
+
 				default: {
 					verify = false
 				}
@@ -382,6 +383,127 @@ func (self *Server) call(request *Request, response *Response) {
 					return
 				}
 			}
+
+			if raw_val.Type().Name() == "string" {
+
+				var coverErr error = nil
+				verify := true
+
+				switch fv.Type().In(i).Kind() {
+
+				case reflect.Uint8 : {
+
+					n,e := strconv.ParseUint(raw_val.String(),10,64)
+					coverErr = e
+					real_params[i] = reflect.ValueOf(uint8(n))
+					break
+				}
+				case reflect.Uint16: {
+
+					n,e := strconv.ParseUint(raw_val.String(),10,64)
+					coverErr = e
+					real_params[i] = reflect.ValueOf(uint16(n))
+					break
+
+				}
+				case reflect.Uint32: {
+					n,e := strconv.ParseUint(raw_val.String(),10,64)
+					coverErr = e
+					real_params[i] = reflect.ValueOf(uint32(n))
+					break
+
+				}
+				case reflect.Uint64:  {
+
+					n,e := strconv.ParseUint(raw_val.String(),10,64)
+					coverErr = e
+					real_params[i] = reflect.ValueOf(uint64(n))
+					break
+
+				}
+				case reflect.Uint:{
+
+					n,e := strconv.ParseUint(raw_val.String(),10,64)
+					coverErr = e
+					real_params[i] = reflect.ValueOf(uint(n))
+					break
+
+				}
+
+				case reflect.Int8:{
+
+					n,e := strconv.ParseInt(raw_val.String(),10,64)
+					coverErr = e
+					real_params[i] = reflect.ValueOf(int8(n))
+					break
+
+
+				}
+				case reflect.Int16:{
+
+					n,e := strconv.ParseInt(raw_val.String(),10,64)
+					coverErr = e
+					real_params[i] = reflect.ValueOf(int16(n))
+					break
+
+				}
+				case reflect.Int32:{
+
+					n,e := strconv.ParseInt(raw_val.String(),10,64)
+					coverErr = e
+					real_params[i] = reflect.ValueOf(int32(n))
+					break
+
+				}
+				case reflect.Int64:{
+
+					n,e := strconv.ParseInt(raw_val.String(),10,64)
+					coverErr = e
+					real_params[i] = reflect.ValueOf(int64(n))
+					break
+
+				}
+
+				case reflect.Int:{
+
+					n,e := strconv.ParseInt(raw_val.String(),10,64)
+					coverErr = e
+					real_params[i] = reflect.ValueOf(int(n))
+					break
+
+				}
+
+				case reflect.Float32:{
+					n,e := strconv.ParseFloat(raw_val.String(),fv.Type().In(i).Bits())
+					coverErr = e
+					real_params[i] = reflect.ValueOf(float32(n))
+					break
+				}
+
+				case reflect.Float64:{
+					n,e := strconv.ParseFloat(raw_val.String(),fv.Type().In(i).Bits())
+					coverErr = e
+					real_params[i] = reflect.ValueOf(float64(n))
+					break
+				}
+
+					default:{
+						verify = false
+					}
+
+				}
+
+				if verify == true {
+					continue
+				}
+
+				if coverErr != nil {
+					response.Status = ERR_EMPTY_RESPONSE
+					response.Error = "cover string to number error:" + coverErr.Error()
+					return
+				}
+			}
+
 			real_params[i] = raw_val.Convert(fv.Type().In(i))
 		}
 
