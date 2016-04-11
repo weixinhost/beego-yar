@@ -6,13 +6,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/astaxie/beego"
-	"github.com/astaxie/beego/context"
-	"github.com/weixinhost/beego-yar/packager"
 	"reflect"
 	"runtime/debug"
 	"strconv"
 	"strings"
+
+	"github.com/astaxie/beego"
+	"github.com/astaxie/beego/context"
+	"github.com/weixinhost/beego-yar/packager"
 )
 
 type ServerOpt int
@@ -162,7 +163,6 @@ func (self *Server) getRequest(header *Header) (*Request, error) {
 func (self *Server) sendResponse(response *Response) error {
 
 	sendPackData, err := packager.Pack(response.Protocol.Packager[:], response)
-
 	if err != nil {
 		return err
 	}
@@ -199,7 +199,6 @@ func (self *Server) sendResponse(response *Response) error {
 		binary.Write(temp, binary.BigEndian, encryptBody.RealLen)
 		temp.Write(encryptBody.Body[:encryptBody.BodyLen])
 		sendPackData = temp.Bytes()
-
 	}
 
 	response.Protocol.BodyLength = uint32(len(sendPackData) + 8)
@@ -213,7 +212,7 @@ func (self *Server) call(request *Request, response *Response) {
 
 	defer func() {
 		if r := recover(); r != nil {
-			response.Status = ERR_EXCEPTION
+			response.Status = ERR_EMPTY_RESPONSE
 			response.Error = "call handler internal panic:" + fmt.Sprint(r)
 			debug.PrintStack()
 		}
