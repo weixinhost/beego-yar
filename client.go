@@ -7,13 +7,14 @@ import (
 	"encoding/gob"
 	"errors"
 	"fmt"
-	"github.com/weixinhost/beego-yar/packager"
-	"github.com/weixinhost/beego-yar/transports"
 	"io/ioutil"
 	"math/rand"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/weixinhost/beego-yar/packager"
+	"github.com/weixinhost/beego-yar/transports"
 )
 
 type ClientOpt int
@@ -278,6 +279,7 @@ func (self *Client) httpCall(method string, ret interface{}, params ...interface
 	if err != nil {
 		return errors.New("[YarClient httpCall] Pack Data Error: " + err.Error())
 	}
+
 	err = packager.Unpack(self.request.Protocol.Packager[:], pack_data, ret)
 
 	if err != nil {
