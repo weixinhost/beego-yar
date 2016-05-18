@@ -241,7 +241,7 @@ func (self *Client) httpCall(method string, ret interface{}, params ...interface
 	bodyTotal := self.request.Protocol.BodyLength - PACKAGER_LENGTH
 
 	if uint32(len(allBody)-PROTOCOL_LENGTH+PACKAGER_LENGTH) < bodyTotal {
-		return errors.New("[YarClient httpCall] Http Response Content Error")
+		return errors.New("[YarClient httpCall] Http Response Content Error:" + string(allBody))
 	}
 
 	body_buffer := allBody[PROTOCOL_LENGTH+PACKAGER_LENGTH:]
