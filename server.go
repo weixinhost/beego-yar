@@ -276,6 +276,10 @@ func (self *Server) call(request *Request, response *Response) {
 
 			raw_val := reflect.ValueOf(v)
 
+			if !raw_val.IsValid() {
+				continue
+			}
+
 			//hack number
 			if raw_val.Type().Name() == "Number" {
 
