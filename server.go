@@ -268,7 +268,7 @@ func (self *Server) call(request *Request, response *Response) {
 
 		for i := 0; i < len(real_params); i++ {
 			if i >= len(call_params) {
-				real_params[i] = reflect.Zero(fv.Type().In(i))
+				real_params[i] = reflect.New(fv.Type().In(i))
 				continue
 			}
 
@@ -277,6 +277,7 @@ func (self *Server) call(request *Request, response *Response) {
 			raw_val := reflect.ValueOf(v)
 
 			if !raw_val.IsValid() {
+				real_params[i] = reflect.New(fv.Type().In(i))
 				continue
 			}
 
